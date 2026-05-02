@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    environment:
+      - HF_ENDPOINT=https://hf-mirror.com
+    ports:
+      - "1218:1218"
+      - "1219:1219"
+    volumes:
+      - ./hf_cache:/root/.cache/huggingface
+      - ./voice_sample:/app/voice_sample
+      - ./outputs:/app/outputs
+    restart: unless-stopped
+    network_mode: bridge

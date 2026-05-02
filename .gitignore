@@ -1,0 +1,9 @@
+.DS_Store
+.python-version
+.venv/
+.vscode/
+__pycache__/
+outputs/
+voice_sample/
+*.pyc
+hf_cache/
