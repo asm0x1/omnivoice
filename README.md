@@ -90,12 +90,12 @@ curl http://localhost:1218/voice_sample
 # 生成语音
 curl -X POST http://localhost:1218/generate \
   -H "Content-Type: application/json" \
-  -d '{"text": "你好世界", "voice_sample": "ami.moment声音样本"}' -o output.wav
+  -d '{"text": "你好世界", "voice_sample": "xxx声音样本"}' -o output.wav
 
 # 批量生成
 curl -X POST http://localhost:1218/generate_batch \
   -H "Content-Type: application/json" \
-  -d '{"texts": ["第一段文本", "第二段文本"], "voice_sample": "ami.moment声音样本"}' \
+  -d '{"texts": ["第一段文本", "第二段文本"], "voice_sample": "xxx声音样本"}' \
   -o batch_output.wav
 ```
 
