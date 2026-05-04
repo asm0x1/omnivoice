@@ -64,7 +64,12 @@ def open_txt(file_path):
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="OmniVoice TTS")
-    parser.add_argument("--device", default="cpu", help="Device: cpu, cuda:0, mps")
+    parser.add_argument("--device", default="cpu", help="Device: cpu, cuda:0, mps, auto")
+    parser.add_argument("--text", "-t", help="Text to synthesize (skip interactive mode)")
+    parser.add_argument("--voice", help="Voice folder name (use with --text)")
+    parser.add_argument("--output", "-o", help="Output WAV file path (use with --text)")
+    parser.add_argument("--language", help="Language, e.g. Chinese, English")
+    parser.add_argument("--speed", type=float, default=1.0, help="Speaking speed (default: 1.0)")
     args = parser.parse_args()
 
     # Auto-detect device
@@ -80,7 +85,41 @@ def main():
 
     dtype = torch.float16 if device.startswith("cuda") or device == "mps" else torch.float32
 
-    # 列出可用声音
+    # Load model
+    print(f"正在加载模型 (device={device}, dtype={dtype})...")
+    model = OmniVoice.from_pretrained(
+        "k2-fsa/OmniVoice",
+        device_map=device,
+        dtype=dtype
+    )
+
+    # Batch mode: --text + --voice
+    if args.text and args.voice:
+        voice_map = {v['name']: v for v in list_voices()}
+        selected = voice_map.get(args.voice)
+        if not selected:
+            print(f"错误: 未找到声音 '{args.voice}'")
+            print(f"可用声音: {list(voice_map.keys())}")
+            return 1
+
+        ref_text = open_txt(selected['text']) if selected['text'] else None
+        print(f"使用声音: {selected['name']}")
+        print(f"参考音频: {selected['audio']}")
+
+        output_path = args.output or f"./outputs/{time.strftime('%Y%m%d%H%M%S', time.localtime())}.wav"
+        print(f"正在生成语音...")
+        audio = model.generate(
+            text=args.text,
+            ref_audio=selected['audio'],
+            ref_text=ref_text,
+            language=args.language,
+            speed=args.speed,
+        )
+        sf.write(output_path, audio[0], 24000)
+        print(f"语音生成完成，已保存到 {output_path}")
+        return 0
+
+    # Interactive mode
     voices = list_voices()
     selected = select_voice(voices)
     if not selected:
@@ -95,15 +134,6 @@ def main():
         ref_text = None
         print("文本: (将使用 Whisper 自动转录)")
 
-    # 加载模型
-    print(f"\n正在加载模型 (device={device}, dtype={dtype})...")
-    model = OmniVoice.from_pretrained(
-        "k2-fsa/OmniVoice",
-        device_map=device,
-        dtype=dtype
-    )
-
-    # 生成循环
     while True:
         print("\n" + "=" * 50)
         input_text = input("请输入要生成的文字 (输入 q 退出)：\n")

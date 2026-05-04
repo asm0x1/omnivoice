@@ -56,11 +56,27 @@ python web.py
 
 ### CLI 模式
 
+**交互模式：**
 ```bash
 python app.py --device auto
 ```
-
 流程：扫描 voice_sample → 选择声音 → 输入文字 → 生成音频 → 循环
+
+**单次生成模式（适合脚本调用）：**
+```bash
+python app.py --text "要合成的文字" --voice "ami.moment声音样本" --output output.wav
+```
+
+**参数说明：**
+
+| 参数 | 简写 | 说明 |
+|------|------|------|
+| `--text` | `-t` | 要合成的文本 |
+| `--voice` | - | 声音文件夹名 |
+| `--output` | `-o` | 输出文件路径（默认 outputs/时间戳.wav） |
+| `--device` | - | 设备：cpu, cuda:0, mps, auto |
+| `--language` | - | 语言（如 Chinese, English） |
+| `--speed` | - | 语速（默认 1.0） |
 
 ### REST API
 
@@ -72,12 +88,14 @@ curl http://localhost:1218/health
 curl http://localhost:1218/voice_sample
 
 # 生成语音
-curl -X POST "http://localhost:1218/generate?text=你好世界&voice=ami.moment声音样本" -o output.wav
+curl -X POST http://localhost:1218/generate \
+  -H "Content-Type: application/json" \
+  -d '{"text": "你好世界", "voice_sample": "ami.moment声音样本"}' -o output.wav
 
 # 批量生成
-curl -X POST "http://localhost:1218/generate_batch?voice=ami.moment声音样本" \
-  -F "texts=第一段文本" \
-  -F "texts=第二段文本" \
+curl -X POST http://localhost:1218/generate_batch \
+  -H "Content-Type: application/json" \
+  -d '{"texts": ["第一段文本", "第二段文本"], "voice_sample": "ami.moment声音样本"}' \
   -o batch_output.wav
 ```
 
@@ -85,10 +103,11 @@ curl -X POST "http://localhost:1218/generate_batch?voice=ami.moment声音样本"
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `text` | string | 是 | 要合成的文本 |
-| `voice` | string | 否 | 声音文件夹名，自动匹配音频和文本 |
-| `ref_audio` | string | 否 | 参考音频路径（voice 未指定时必填） |
-| `ref_text` | string | 否 | 参考文本或文本文件路径 |
+| `text` | string | 是 | 要合成的文本（generate接口） |
+| `texts` | string[] | 是 | 要合成的文本数组（generate_batch接口） |
+| `voice_sample` | string | 否 | 声音文件夹名，自动匹配音频和文本 |
+| `ref_audio` | string | 否 | 参考音频路径（相对于 `voice_sample/` 目录） |
+| `ref_text` | string | 否 | 参考文本或文本文件路径（相对于 `voice_sample/` 目录） |
 | `language` | string | 否 | 语言（如 "Chinese", "English"） |
 | `speed` | float | 否 | 语速（1.0 = 默认） |
 

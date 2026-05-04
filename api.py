@@ -149,10 +149,10 @@ def find_voice_files(voice_name: str) -> tuple[str, str] | None:
     audio_files = list(voice_dir.glob("*.mp3")) + list(voice_dir.glob("*.wav")) + list(voice_dir.glob("*.flac"))
     if not audio_files:
         return None
-    audio_path = str(audio_files[0])
+    audio_path = str(Path(voice_name) / audio_files[0].name)  # relative path with folder prefix
 
     text_files = list(voice_dir.glob("*.txt"))
-    text_path = str(text_files[0]) if text_files else None
+    text_path = str(Path(voice_name) / text_files[0].name) if text_files else None  # relative path with folder prefix
 
     return audio_path, text_path
 
@@ -216,7 +216,7 @@ async def generate_speech(params: GenerateParams = Body(...)):
         if not voice_files:
             raise HTTPException(status_code=400, detail=f"Voice folder not found: {voice_sample}")
         audio_path, text_path = voice_files
-        ref_audio = str(Path(AUDIO_DIR) / voice_sample / Path(audio_path).name)
+        ref_audio = audio_path  # audio_path is already the full resolved path
         if not ref_text and text_path:
             ref_text = text_path
 
@@ -316,7 +316,7 @@ async def generate_batch(params: BatchGenerateParams = Body(...)):
         if not voice_files:
             raise HTTPException(status_code=400, detail=f"Voice folder not found: {voice_sample}")
         audio_path, text_path = voice_files
-        ref_audio = str(Path(AUDIO_DIR) / voice_sample / Path(audio_path).name)
+        ref_audio = audio_path  # audio_path is already the full resolved path
         if not ref_text and text_path:
             ref_text = text_path
 
