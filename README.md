@@ -87,17 +87,32 @@ curl http://localhost:1218/health
 # 查看可用声音列表
 curl http://localhost:1218/voice_sample
 
-# 生成语音
+# 生成语音（不指定output，保存到outputs/目录，返回JSON）
 curl -X POST http://localhost:1218/generate \
   -H "Content-Type: application/json" \
-  -d '{"text": "你好世界", "voice_sample": "xxx声音样本"}' -o output.wav
+  -d '{"text": "你好世界", "voice_sample": "xxx声音样本"}'
 
-# 批量生成
+# 生成语音（指定output，返回音频文件下载）
+curl -X POST http://localhost:1218/generate \
+  -H "Content-Type: application/json" \
+  -d '{"text": "你好世界", "voice_sample": "xxx声音样本", "output": "my_audio.wav"}' -o output.wav
+
+# 批量生成（不指定output，保存到outputs/目录）
 curl -X POST http://localhost:1218/generate_batch \
   -H "Content-Type: application/json" \
-  -d '{"texts": ["第一段文本", "第二段文本"], "voice_sample": "xxx声音样本"}' \
+  -d '{"texts": ["第一段文本", "第二段文本"], "voice_sample": "xxx声音样本"}'
+
+# 批量生成（指定output，返回音频文件下载）
+curl -X POST http://localhost:1218/generate_batch \
+  -H "Content-Type: application/json" \
+  -d '{"texts": ["第一段文本", "第二段文本"], "voice_sample": "xxx声音样本", "output": "batch.wav"}' \
   -o batch_output.wav
 ```
+
+**访问生成的音频**
+
+不指定 `output` 时，音频保存到 `outputs/` 目录，可通过以下方式访问：
+- `http://localhost:1218/outputs/20260504142500.wav`
 
 **API 参数说明：**
 
@@ -110,6 +125,7 @@ curl -X POST http://localhost:1218/generate_batch \
 | `ref_text` | string | 否 | 参考文本或文本文件路径（相对于 `voice_sample/` 目录） |
 | `language` | string | 否 | 语言（如 "Chinese", "English"） |
 | `speed` | float | 否 | 语速（1.0 = 默认） |
+| `output` | string | 否 | 输出文件名（指定则返回下载，不指定则保存到 `outputs/` 并返回 JSON） |
 
 **输出格式**: 全部返回 **24kHz mono WAV**
 
