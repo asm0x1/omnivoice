@@ -5,3 +5,6 @@
 __pycache__/
 *.pyc
 hf_cache/
+voice_sample/
+outputs/
+!.gitkeep

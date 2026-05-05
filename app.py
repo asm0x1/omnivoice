@@ -66,7 +66,9 @@ def main():
     parser = argparse.ArgumentParser(description="OmniVoice TTS")
     parser.add_argument("--device", default="cpu", help="Device: cpu, cuda:0, mps, auto")
     parser.add_argument("--text", "-t", help="Text to synthesize (skip interactive mode)")
-    parser.add_argument("--voice", help="Voice folder name (use with --text)")
+    parser.add_argument("--voice_sample", help="Voice folder name in voice_sample/")
+    parser.add_argument("--ref_audio", help="Reference audio file path")
+    parser.add_argument("--ref_text", help="Reference text or .txt file path")
     parser.add_argument("--output", "-o", help="Output WAV file path (use with --text)")
     parser.add_argument("--language", help="Language, e.g. Chinese, English")
     parser.add_argument("--speed", type=float, default=1.0, help="Speaking speed (default: 1.0)")
@@ -93,24 +95,30 @@ def main():
         dtype=dtype
     )
 
-    # Batch mode: --text + --voice
-    if args.text and args.voice:
-        voice_map = {v['name']: v for v in list_voices()}
-        selected = voice_map.get(args.voice)
-        if not selected:
-            print(f"错误: 未找到声音 '{args.voice}'")
-            print(f"可用声音: {list(voice_map.keys())}")
-            return 1
-
-        ref_text = open_txt(selected['text']) if selected['text'] else None
-        print(f"使用声音: {selected['name']}")
-        print(f"参考音频: {selected['audio']}")
+    # Batch mode: --text + (--voice_sample or --ref_audio)
+    if args.text and (args.voice_sample or args.ref_audio):
+        # Get voice info
+        if args.voice_sample:
+            voice_map = {v['name']: v for v in list_voices()}
+            selected = voice_map.get(args.voice_sample)
+            if not selected:
+                print(f"错误: 未找到声音 '{args.voice_sample}'")
+                print(f"可用声音: {list(voice_map.keys())}")
+                return 1
+            ref_audio = selected['audio']
+            ref_text = open_txt(selected['text']) if selected['text'] else None
+            print(f"使用声音: {selected['name']}")
+            print(f"参考音频: {selected['audio']}")
+        else:
+            ref_audio = args.ref_audio
+            ref_text = open_txt(args.ref_text) if args.ref_text else None
+            print(f"使用参考音频: {ref_audio}")
 
         output_path = args.output or f"./outputs/{time.strftime('%Y%m%d%H%M%S', time.localtime())}.wav"
         print(f"正在生成语音...")
         audio = model.generate(
             text=args.text,
-            ref_audio=selected['audio'],
+            ref_audio=ref_audio,
             ref_text=ref_text,
             language=args.language,
             speed=args.speed,
