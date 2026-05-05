@@ -7,14 +7,12 @@ from pathlib import Path
 from typing import Annotated
 
 import soundfile as sf
-from fastapi import FastAPI, HTTPException, Body, Query
-from fastapi.responses import Response, FileResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, HTTPException, Body
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 import torch
 from pydub import AudioSegment
 import numpy as np
-import time
 
 from omnivoice import OmniVoice
 
@@ -24,10 +22,6 @@ model = None
 
 # Audio directory for reference files
 AUDIO_DIR = os.environ.get("AUDIO_DIR", "voice_sample")
-
-# Output directory for generated audio
-OUTPUTS_DIR = os.path.join(os.path.dirname(__file__), "outputs")
-os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
 
 def load_model(device: str = "cpu", dtype: torch.dtype = torch.float32):
@@ -100,9 +94,6 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_tags=tags_metadata,
 )
-
-# Mount outputs directory for static file access
-app.mount("/outputs", StaticFiles(directory=OUTPUTS_DIR), name="outputs")
 
 
 @app.get("/health", tags=["Info"])
@@ -195,7 +186,6 @@ class GenerateParams(BaseModel):
     ref_text: Annotated[str | None, Field(description="Reference text or path to .txt file")] = None
     language: Annotated[str | None, Field(description="Text language, e.g. 'Chinese' or 'English'")] = None
     speed: Annotated[float | None, Field(description="Speaking speed, 1.0 = default")] = None
-    output: Annotated[str | None, Field(description="Output filename (relative to outputs/). If not specified, saves to outputs/ with auto-generated name")] = None
 
 
 @app.post("/generate", tags=["Generation"])
@@ -216,7 +206,6 @@ async def generate_speech(params: GenerateParams = Body(...)):
     ref_text = params.ref_text
     language = params.language
     speed = params.speed
-    output_filename = params.output
 
     if not text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
@@ -267,27 +256,16 @@ async def generate_speech(params: GenerateParams = Body(...)):
         if not audio or len(audio) == 0:
             raise HTTPException(status_code=500, detail="Generation failed")
 
-        if output_filename:
-            # Save to specified output path (relative to outputs dir or absolute)
-            if Path(output_filename).is_absolute():
-                output_path = output_filename
-            else:
-                output_path = str(Path(OUTPUTS_DIR) / output_filename)
-            sf.write(output_path, audio[0], 24000, format="WAV")
-            return Response(
-                content=open(output_path, "rb").read(),
-                media_type="audio/wav",
-                headers={"Content-Disposition": f"attachment; filename={Path(output_filename).name}"},
-            )
-        else:
-            # Save to outputs directory with auto-generated filename
-            filename = f"{time.strftime('%Y%m%d%H%M%S', time.localtime())}.wav"
-            output_path = str(Path(OUTPUTS_DIR) / filename)
-            sf.write(output_path, audio[0], 24000, format="WAV")
-            return {
-                "filename": filename,
-                "path": f"/outputs/{filename}"
-            }
+        # Return first result as WAV
+        output = io.BytesIO()
+        sf.write(output, audio[0], 24000, format="WAV")
+        output.seek(0)
+
+        return Response(
+            content=output.read(),
+            media_type="audio/wav",
+            headers={"Content-Disposition": "attachment; filename=output.wav"},
+        )
 
     except HTTPException:
         raise
@@ -307,7 +285,6 @@ class BatchGenerateParams(BaseModel):
     ref_text: Annotated[str | None, Field(description="Reference text or path to .txt file")] = None
     language: Annotated[str | None, Field(description="Text language, e.g. 'Chinese' or 'English'")] = None
     speed: Annotated[float | None, Field(description="Speaking speed, 1.0 = default")] = None
-    output: Annotated[str | None, Field(description="Output filename (relative to outputs/). If not specified, saves to outputs/ with auto-generated name")] = None
 
 
 @app.post("/generate_batch", tags=["Generation"])
@@ -329,7 +306,6 @@ async def generate_batch(params: BatchGenerateParams = Body(...)):
     ref_text = params.ref_text
     language = params.language
     speed = params.speed
-    output_filename = params.output
 
     if not texts:
         raise HTTPException(status_code=400, detail="Texts list cannot be empty")
@@ -380,27 +356,15 @@ async def generate_batch(params: BatchGenerateParams = Body(...)):
         # Combine all audio segments
         combined = np.concatenate(audios) if len(audios) > 1 else audios[0]
 
-        if output_filename:
-            # Save to specified output path
-            if Path(output_filename).is_absolute():
-                output_path = output_filename
-            else:
-                output_path = str(Path(OUTPUTS_DIR) / output_filename)
-            sf.write(output_path, combined, 24000, format="WAV")
-            return Response(
-                content=open(output_path, "rb").read(),
-                media_type="audio/wav",
-                headers={"Content-Disposition": f"attachment; filename={Path(output_filename).name}"},
-            )
-        else:
-            # Save to outputs directory with auto-generated filename
-            filename = f"batch_{time.strftime('%Y%m%d%H%M%S', time.localtime())}.wav"
-            output_path = str(Path(OUTPUTS_DIR) / filename)
-            sf.write(output_path, combined, 24000, format="WAV")
-            return {
-                "filename": filename,
-                "path": f"/outputs/{filename}"
-            }
+        output = io.BytesIO()
+        sf.write(output, combined, 24000, format="WAV")
+        output.seek(0)
+
+        return Response(
+            content=output.read(),
+            media_type="audio/wav",
+            headers={"Content-Disposition": "attachment; filename=batch_output.wav"},
+        )
 
     except HTTPException:
         raise
